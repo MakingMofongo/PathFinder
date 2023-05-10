@@ -1,1 +1,4 @@
-Midas/weights/
+Midas/weights/dpt_beit_large_512.pt
+Midas/weights/dpt_swin_large_384.pt
+Midas/weights/dpt_swin2_large_384.pt
+Midas/weights/dpt_swin2_tiny_256.pt
