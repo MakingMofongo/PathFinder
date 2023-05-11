@@ -2,17 +2,6 @@ import cv2
 import numpy as np
 import heapq
 from heapq import heappush, heappop
-
-def heuristic(a, b):
-    return np.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2)
-
-
-def neighbors(point, img_shape):
-    x, y = point
-    return [(new_x, new_y) for new_x in range(x - 1, x + 2) for new_y in range(y - 1, y + 2)
-            if 0 <= new_x < img_shape[1] and 0 <= new_y < img_shape[0] and (new_x != x or new_y != y)]
-
-
 def dijkstra(start, end, depth_map):
     visited = np.zeros(depth_map.shape, dtype=bool)
     queue = [(0, start, [])]
@@ -30,11 +19,31 @@ def dijkstra(start, end, depth_map):
                 heappush(queue, (new_cost, neighbor, path))
     return None
 
-def astar(start, end, depth_map, object_threshold=0, penalty_weight=0.0):
+def heuristic(a, b):
+    return np.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2)
+
+
+def neighbors(point, img_shape):
+    x, y = point
+    return [(new_x, new_y) for new_x in range(x - 1, x + 2) for new_y in range(y - 1, y + 2)
+            if 0 <= new_x < img_shape[1] and 0 <= new_y < img_shape[0] and (new_x != x or new_y != y)]
+
+
+
+def create_distance_transform(depth_map, object_threshold):
+    binary_map = (depth_map < object_threshold).astype(np.uint8)
+    distance_transform = cv2.distanceTransform(binary_map, cv2.DIST_L2, cv2.DIST_MASK_PRECISE)
+    return distance_transform
+
+def astar(start, end, depth_map, object_threshold=40, penalty_weight=1, min_distance=45):
+    distance_transform = create_distance_transform(depth_map, object_threshold)
+
     def cost_with_penalty(current, neighbor):
-        cost = depth_map[neighbor[::-1]]
-        if depth_map[neighbor[::-1]] < object_threshold:
-            cost += penalty_weight
+        cost = heuristic(current, neighbor)
+        distance = distance_transform[neighbor[::-1]]
+        brightness_penalty = depth_map[neighbor[::-1]] / 255.0
+        if distance < min_distance:
+            cost += (min_distance - distance) * penalty_weight * brightness_penalty
         return cost
 
     open_set = []
@@ -65,9 +74,7 @@ def astar(start, end, depth_map, object_threshold=0, penalty_weight=0.0):
     return None
 
 
-
-
-def main(depth_map):
+def main(depth_map, frame_num):
 
 
     # Define the coordinates of the red dot as the bottom center of the image
@@ -101,7 +108,7 @@ def main(depth_map):
             cv2.line(depth_map_color, path[i], path[i + 1], (255, 0, 0), line_thickness)
 
     # Show the depth map with the red dot, green dot, and path
-    cv2.imshow('Depth Map with Nearest Point', depth_map_color)
+    cv2.imshow(f'Path for map {frame_num}', depth_map_color)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
@@ -110,7 +117,9 @@ if __name__ == '__main__':
     # read all depth maps from Midas/outputs/depth and find the path for each
     path = './Midas/outputs/depth/'
     # number of images in the folder
-    n = 60
-    for i in range(1, 60):
-        depth_map = cv2.imread(path + str(i) + '.png', cv2.IMREAD_GRAYSCALE)
-        main(depth_map)
+    n = 1
+    for i in range(1, n+1):
+
+        depth_map = cv2.imread(path + '9' + '.png', cv2.IMREAD_GRAYSCALE)
+        if depth_map is not None:
+            main(depth_map,i)
