@@ -175,6 +175,7 @@ def run(input_path, output_path, model_path, model_type="dpt_beit_large_512", op
             frame_index = 0
             while True:
                 frame = video.read()
+                # cv2.imshow('raw image', frame)
                 if frame is not None:
                     original_image_rgb = np.flip(frame, 2)  # in [0, 255] (flip required to get RGB)
                     image = transform({"image": original_image_rgb/255})["image"]
@@ -182,13 +183,20 @@ def run(input_path, output_path, model_path, model_type="dpt_beit_large_512", op
                     prediction = process(device, model, model_type, image, (net_w, net_h),
                                          original_image_rgb.shape[1::-1], optimize, True)
 
+                    bgr = original_image_bgr = np.flip(original_image_rgb, 2)
                     original_image_bgr = np.flip(original_image_rgb, 2) if side else None
                     content = create_side_by_side(original_image_bgr, prediction, grayscale)
                     cv2.imshow('MiDaS Depth Estimation - Press Escape to close window ', content/255)
 
                     if output_path is not None:
-                        filename = os.path.join(output_path, 'Camera' + '-' + model_type + '_' + str(frame_index))
-                        cv2.imwrite(filename + ".png", content)
+                        # filename = os.path.join(output_path, 'Camera' + '-' + model_type + '_' + str(frame_index))
+                        # cv2.imwrite(filename + ".png", content)
+                        output_path_depth = output_path + '/depth'
+                        output_path_rgb = output_path + '/rgb'
+                        filename_depth = os.path.join(output_path_depth, str(frame_index))
+                        filename_rgb = os.path.join(output_path_rgb, str(frame_index))
+                        cv2.imwrite(filename_depth + ".png", content)
+                        cv2.imwrite(filename_rgb + ".png", frame)
 
                     alpha = 0.1
                     if time.time()-time_start > 0:
@@ -204,6 +212,9 @@ def run(input_path, output_path, model_path, model_type="dpt_beit_large_512", op
 
     print("Finished")
 
+
+def run_camera_inference(model='dpt_swin2_tiny_256'):   
+    run(None,'./Midas/outputs',f'./Midas/weights/{model}.pt',model_type=model)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -275,3 +286,6 @@ if __name__ == "__main__":
     # compute depth maps
     run(args.input_path, args.output_path, args.model_weights, args.model_type, args.optimize, args.side, args.height,
         args.square, args.grayscale)
+    
+
+
