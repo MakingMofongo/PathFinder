@@ -108,9 +108,10 @@ def main(depth_map):
 if __name__ == '__main__':
 
     # read all depth maps from Midas/outputs/depth and find the path for each
-    path = './Midas/outputs/depth/'
-    # number of images in the folder
-    n = 60
-    for i in range(1, 60):
-        depth_map = cv2.imread(path + str(i) + '.png', cv2.IMREAD_GRAYSCALE)
+    path = './depth_maps/'
+
+    files = [f for f in os.listdir(path) if f.endswith('.png')]
+    for f in files:
+        depth_map = cv2.imread(path + f, cv2.IMREAD_GRAYSCALE)
         main(depth_map)
+
