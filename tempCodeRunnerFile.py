@@ -1,6 +1,2 @@
-        # interval = 500
-        # color_orange = (0, 165, 255)
-        # for i in range(0, len(path), interval):
-        #     point = path[i]
-        #     radius = int(distance_map[point[::-1]])
-        #     cv2.circle(depth_map_color, point, radius, color_orange, 2)
+def heuristic(a, b):
+    return np.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2)
