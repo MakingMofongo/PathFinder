@@ -3,8 +3,9 @@ import numpy as np
 import heapq
 from heapq import heappush, heappop
 import time
+import keyboard
 
-Crop_factor = 20
+Crop_factor = 10
 def dijkstra(start, end, depth_map):
     visited = np.zeros(depth_map.shape, dtype=bool)
     queue = [(0, start, [])]
@@ -77,7 +78,10 @@ def astar(start, end, depth_map, object_threshold=50, penalty_weight=1, min_dist
     return None
 
 
-def main(depth_map, frame_num):
+def main(depth_map=None, frame_num='frame'):
+
+    while (depth_map is None):
+        depth_map = cv2.imread('./Midas/outputs/depth/frame.png', cv2.IMREAD_GRAYSCALE)
     t1 = time.time()
 
     original_depth_map = depth_map.copy()
@@ -127,21 +131,25 @@ def main(depth_map, frame_num):
     cv2.imshow(f'Path for map {frame_num}', original_depth_map_color)
     t2 = time.time()
     print(f'Frame {frame_num} took {t2-t1} seconds')
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    cv2.waitKey(1)
+    # cv2.destroyAllWindows()
+
+def loop_main():
+    while keyboard.is_pressed('q') == False:
+        main()
 
 def downsample_image(image, factor=Crop_factor):
     new_shape = (image.shape[1] // factor, image.shape[0] // factor)
     return cv2.resize(image, new_shape, interpolation=cv2.INTER_AREA)
 
 if __name__ == '__main__':
+    main()
+    # # read all depth maps from Midas/outputs/depth and find the path for each
+    # path = './Midas/outputs/depth/'
+    # # number of images in the folder
+    # n = 60
+    # for i in range(1, n+1):
 
-    # read all depth maps from Midas/outputs/depth and find the path for each
-    path = './Midas/outputs/depth/'
-    # number of images in the folder
-    n = 60
-    for i in range(1, n+1):
-
-        depth_map = cv2.imread(path + str(i) + '.png', cv2.IMREAD_GRAYSCALE)
-        if depth_map is not None:
-            main(depth_map,i)
+    #     depth_map = cv2.imread(path + str(i) + '.png', cv2.IMREAD_GRAYSCALE)
+    #     if depth_map is not None:
+    #         main(depth_map,i)

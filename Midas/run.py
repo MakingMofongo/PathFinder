@@ -193,8 +193,8 @@ def run(input_path, output_path, model_path, model_type="dpt_beit_large_512", op
                         # cv2.imwrite(filename + ".png", content)
                         output_path_depth = output_path + '/depth'
                         output_path_rgb = output_path + '/rgb'
-                        filename_depth = os.path.join(output_path_depth, str(frame_index))
-                        filename_rgb = os.path.join(output_path_rgb, str(frame_index))
+                        filename_depth = os.path.join(output_path_depth, 'frame')
+                        filename_rgb = os.path.join(output_path_rgb, 'frame')
                         cv2.imwrite(filename_depth + ".png", content)
                         cv2.imwrite(filename_rgb + ".png", frame)
 
