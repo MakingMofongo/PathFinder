@@ -18,15 +18,7 @@ from heapq import heappush, heappop
 
 first_execution = True
 
-def heuristic(a, b):
-    return np.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2)
-
-
-def neighbors(point, img_shape):
-    x, y = point
-    return [(new_x, new_y) for new_x in range(x - 1, x + 2) for new_y in range(y - 1, y + 2)
-            if 0 <= new_x < img_shape[1] and 0 <= new_y < img_shape[0] and (new_x != x or new_y != y)]
-
+Crop_factor = 20
 
 def dijkstra(start, end, depth_map):
     visited = np.zeros(depth_map.shape, dtype=bool)
@@ -45,11 +37,31 @@ def dijkstra(start, end, depth_map):
                 heappush(queue, (new_cost, neighbor, path))
     return None
 
-def astar(start, end, depth_map, object_threshold=0, penalty_weight=0.0):
+def heuristic(a, b):
+    return np.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2)
+
+
+def neighbors(point, img_shape):
+    x, y = point
+    return [(new_x, new_y) for new_x in range(x - 1, x + 2) for new_y in range(y - 1, y + 2)
+            if 0 <= new_x < img_shape[1] and 0 <= new_y < img_shape[0] and (new_x != x or new_y != y)]
+
+
+
+def create_distance_transform(depth_map, object_threshold):
+    binary_map = (depth_map < object_threshold).astype(np.uint8)
+    distance_transform = cv2.distanceTransform(binary_map, cv2.DIST_L2, cv2.DIST_MASK_PRECISE)
+    return distance_transform
+
+def astar(start, end, depth_map, object_threshold=50, penalty_weight=1, min_distance=1000):
+    distance_transform = create_distance_transform(depth_map, object_threshold)
+
     def cost_with_penalty(current, neighbor):
-        cost = depth_map[neighbor[::-1]]
-        if depth_map[neighbor[::-1]] < object_threshold:
-            cost += penalty_weight
+        cost = heuristic(current, neighbor)
+        distance = distance_transform[neighbor[::-1]]
+        brightness_penalty = depth_map[neighbor[::-1]] / 255.0
+        if distance < min_distance:
+            cost += (min_distance - distance) * penalty_weight * brightness_penalty
         return cost
 
     open_set = []
@@ -79,7 +91,9 @@ def astar(start, end, depth_map, object_threshold=0, penalty_weight=0.0):
 
     return None
 
-
+def downsample_image(image, factor=Crop_factor):
+    new_shape = (image.shape[1] // factor, image.shape[0] // factor)
+    return cv2.resize(image, new_shape, interpolation=cv2.INTER_AREA)
 
 first_execution = True
 def process(device, model, model_type, image, input_size, target_size, optimize, use_camera):
@@ -257,6 +271,10 @@ def run(input_path, output_path, model_path, model_type="dpt_beit_large_512", op
                     ##
                     depth_map=content/255
 
+                    original_depth_map = depth_map.copy()
+                    depth_map = downsample_image(depth_map)
+
+
                     depth_map = cv2.cvtColor(depth_map, cv2.COLOR_BGR2GRAY)
 
                     dot_x = depth_map.shape[1] // 2
@@ -276,22 +294,34 @@ def run(input_path, output_path, model_path, model_type="dpt_beit_large_512", op
                     thickness = -1  # Fill the circle
                     line_thickness = 5
                     cv2.circle(depth_map_color, (dot_x, dot_y), radius_red, color_red, thickness)
-                    print("farthest_point",farthest_point[::-1])
 
                     cv2.circle(depth_map_color, farthest_point[::-1], radius_green, color_green, thickness)
 
+
+                    path=False
+
                     # Find the path between the red and green dots with the least obstruction
-                    path = dijkstra((dot_x, dot_y), farthest_point[::-1], depth_map)
-                    #path = astar((dot_x, dot_y), farthest_point[::-1], depth_map)
+                    #path = dijkstra((dot_x, dot_y), farthest_point[::-1], depth_map)
+                    path = astar((dot_x, dot_y), farthest_point[::-1], depth_map)
+
+                    upscale_factor=Crop_factor
+                    path = [(x * upscale_factor, y * upscale_factor) for x, y in path]
+
+                    #convert gray image to bgr image
+                   # original_depth_map_color = cv2.cvtColor(original_depth_map, cv2.COLOR_GRAY2BGR)
+
+                   # cv2.circle(original_depth_map_color, (dot_x * upscale_factor, dot_y * upscale_factor), radius_red, color_red, thickness)
+                   # cv2.circle(original_depth_map_color, (farthest_point[1] * upscale_factor, farthest_point[0] * upscale_factor), radius_green, color_green, thickness)
 
 
                     # Draw the path with a blue line
                     if path:
                         for i in range(len(path) - 1):
-                            cv2.line(depth_map_color, path[i], path[i + 1], (255, 0, 0), line_thickness)
+                            cv2.line(original_depth_map, path[i], path[i + 1], (255, 0, 0), line_thickness)
 
-                    cv2.imshow('MiDaS Depth Estimation - Press Escape to close window ', depth_map_color)
-                    cv2.imshow('MiDaS Depth Estimation - Press Escape to close window ', content/255)
+                    cv2.imshow('MiDaS Depth Estimation - Press Escape to close window ', original_depth_map)
+
+                    #cv2.imshow('MiDaS Depth Estimation - Press Escape to close window ', content/255)
 
                     if output_path is not None:
                         # filename = os.path.join(output_path, 'Camera' + '-' + model_type + '_' + str(frame_index))
