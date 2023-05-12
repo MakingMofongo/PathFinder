@@ -3,7 +3,7 @@
 import os
 import glob
 import torch
-import utils
+from . import utils
 import cv2
 import argparse
 import time
@@ -12,6 +12,8 @@ import numpy as np
 
 from imutils.video import VideoStream
 from midas.model_loader import default_models, load_model
+
+from extras.Midas_Sam_Helper import farthest_point
 
 first_execution = True
 def process(device, model, model_type, image, input_size, target_size, optimize, use_camera):
@@ -157,7 +159,7 @@ def run(input_path, output_path, model_path, model_type="dpt_beit_large_512", op
             # output
             if output_path is not None:
                 filename = os.path.join(
-                    output_path, os.path.splitext(os.path.basename(image_name))[0] + '-' + model_type
+                    output_path, 'frame'
                 )
                 if not side:
                     utils.write_depth(filename, prediction, grayscale, bits=2)
@@ -165,6 +167,7 @@ def run(input_path, output_path, model_path, model_type="dpt_beit_large_512", op
                     original_image_bgr = np.flip(original_image_rgb, 2)
                     content = create_side_by_side(original_image_bgr*255, prediction, grayscale)
                     cv2.imwrite(filename + ".png", content)
+                    print(f"file saved to {filename}.png")
                 utils.write_pfm(filename + ".pfm", prediction.astype(np.float32))
 
     else:
@@ -197,6 +200,12 @@ def run(input_path, output_path, model_path, model_type="dpt_beit_large_512", op
                         filename_rgb = os.path.join(output_path_rgb, 'frame')
                         cv2.imwrite(filename_depth + ".png", content)
                         cv2.imwrite(filename_rgb + ".png", frame)
+                        depth_map = cv2.imread(filename_depth + ".png", cv2.IMREAD_GRAYSCALE)
+                        point = farthest_point(depth_map)
+                        # write to txt file
+                        with open(output_path_depth + '/point.txt', 'w') as f:
+                            f.write(str(point[0]) + ',' + str(point[1]))
+                            
 
                     alpha = 0.1
                     if time.time()-time_start > 0:
