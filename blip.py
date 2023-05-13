@@ -12,7 +12,7 @@ def caption(image,processor,model,text=''):
         # unconditional image captioning
         inputs = processor(raw_image, return_tensors="pt").to("cuda")
         out = model.generate(**inputs)
-        return processor.decode(out[0], skip_special_tokens=False)
+        return processor.decode(out[0], skip_special_tokens=True)
     else:
         # conditional image captioning
         inputs = processor(raw_image, text, return_tensors="pt").to("cuda")
