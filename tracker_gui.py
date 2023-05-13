@@ -4,9 +4,10 @@ import yolo
 import time
 import path_finding as pf
 import midas_single_image as midas
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QListWidget, QPushButton, QListWidgetItem
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QListWidget, QPushButton, QListWidgetItem, QPlainTextEdit
 from PyQt5.QtGui import QImage, QPixmap
 from PyQt5.QtCore import QTimer, Qt
+import blip
 
 def create_tracker():
     tracker = cv2.TrackerKCF_create()
@@ -18,8 +19,10 @@ def get_bounding_box(frame, objects, locations, index):
 
 class VideoWidget(QWidget):
     def __init__(self):
+        
         super().__init__()
-
+        self.yolo_model = yolo.load_yolo()
+        self.blip_processor, self.blip_model = blip.setup_model()
         self.tracker = create_tracker()
         self.video = cv2.VideoCapture(0)
         self.frame = None
@@ -37,12 +40,17 @@ class VideoWidget(QWidget):
         self.back_button = QPushButton("Back to YOLO mode", self)
         self.navigate_button = QPushButton("Navigate", self)
         self.navigate_button.hide()
+        self.caption_textbox = QPlainTextEdit(self)
+        self.caption_textbox.setReadOnly(True)
+        self.describe_button = QPushButton("Describe environment", self)
 
         video_layout = QVBoxLayout()
         video_layout.addWidget(self.video_label)
         video_layout.addWidget(self.objects_list)
         video_layout.addWidget(self.back_button)
         video_layout.addWidget(self.navigate_button)
+        video_layout.addWidget(self.describe_button)
+        video_layout.addWidget(self.caption_textbox)
 
         sidebar_layout = QVBoxLayout()
         sidebar_layout.addWidget(QLabel("Recently appeared objects:"))
@@ -64,12 +72,13 @@ class VideoWidget(QWidget):
         self.recent_objects_list.itemClicked.connect(self.start_tracking)
         self.back_button.clicked.connect(self.switch_to_yolo_mode)
         self.navigate_button.clicked.connect(self.toggle_navigation)
+        self.describe_button.clicked.connect(self.describe_environment)
 
     def update_video(self):
         ret, self.frame = self.video.read()
         if ret:
             if not self.tracking:
-                result = yolo.inference(self.frame, Loop=False)
+                result = yolo.inference(self.frame, Loop=False, model=self.yolo_model)
                 self.frame = result[2]
                 self.objects = result[0]
                 self.locations = result[1]
@@ -141,30 +150,59 @@ class VideoWidget(QWidget):
     def toggle_navigation(self):
         self.navigation_started = not self.navigation_started
 
+    def describe_environment(self):
+        if self.frame is not None:
+            # Convert the frame to an RGB image
+            image = cv2.cvtColor(self.frame, cv2.COLOR_BGR2RGB)
+
+            # Generate the caption using the Blip model
+            caption_text = blip.caption(image, self.blip_processor, self.blip_model)
+
+            # Display the caption in the text box
+            self.caption_textbox.setPlainText(caption_text)
+
     def start_navigation(self):
         if self.tracking and self.bbox:
             x, y, w, h = [int(v) for v in self.bbox]
             target_point = (x + w // 2, y + h)
             cv2.circle(self.frame, target_point, 5, (0, 0, 255), -1)
-            # save self.frame
+
             save_path = './Midas/inputs/rgb/'
             cv2.imwrite(save_path + 'frame_gui.png', self.frame)
-            # print size of self.frame  
-            print('Size of self frame',self.frame.shape)
+            print('Size of self frame', self.frame.shape)
             midas.run_midas(save_path)
             depth_map = midas._open_map()
             path_result = pf.path_to_point(target_point, depth_map)
-            # if is not none
+
             if path_result is None:
                 print('No path found')
-            else:    
+            else:
                 path = path_result[0]
                 depth_map_with_path = path_result[1]
-                
+
                 for i in range(len(path) - 1):
                     cv2.line(self.frame, path[i], path[i + 1], (0, 0, 255), 2)
-                cv2.imshow('Depth Map', depth_map_with_path)
-                cv2.imshow('Navigation', self.frame)
+
+                # Calculate the direction of the nearest portion of the path
+                origin = (self.frame.shape[1] // 2, self.frame.shape[0])
+                nearest_point = path[2]
+                direction = ""
+
+                if nearest_point[0] < origin[0]:
+                    direction = "left"
+                elif nearest_point[0] > origin[0]:
+                    direction = "right"
+                
+                print(f'direction: {direction}')
+
+                # Display the direction on the frame
+                if direction:
+                    cv2.putText(self.frame, direction.upper(), (origin[0] - 50, origin[1] - 50),
+                                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+
+                # cv2.imshow('Depth Map', depth_map_with_path)
+                # cv2.imshow('Navigation', self.frame)
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
