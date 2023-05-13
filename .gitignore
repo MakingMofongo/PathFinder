@@ -5,5 +5,7 @@ Midas/weights/dpt_swin2_tiny_256.pt
 Midas/outputs
 sam_vit_h_4b8939.pth
 yolov5s.pt
+yolov7.pt
+yolov8n.pt
 tempCodeRunnerFile.py
 extras
