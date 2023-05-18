@@ -4,21 +4,40 @@ import yolo
 import time
 import path_finding as pf
 import midas_single_image as midas
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QListWidget, QPushButton, QListWidgetItem, QPlainTextEdit
+import socket
+import threading
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QListWidget, QPushButton, QListWidgetItem, QPlainTextEdit,QCheckBox
 from PyQt5.QtGui import QImage, QPixmap
-from PyQt5.QtCore import QTimer, Qt
+from PyQt5.QtCore import QTimer, Qt,QThread,pyqtSignal
 import blip
 import deepface_recognizer as deepface
 from ElevenLabs.eleven_labs import play_audio
 import numpy as np
 
+PORT = 5050
+SERVER= socket.gethostbyname(socket.gethostname())
+ADDR = (SERVER, PORT)
+HEADER = 64
+FORMAT = 'utf-8'
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.bind(ADDR)
 
 def create_tracker():
     # Create tracker object
     # tracker = cv2.TrackerCSRT_create() # slow, accurate, bad track loss detection
     tracker = cv2.TrackerKCF_create() # fast, less accurate, good track loss detection
-
     return tracker
+
+class WifiThread(QThread):
+    finished= pyqtSignal()
+
+    def __init__(self, wifi_control, parent=None):
+        super().__init__(parent)
+        self.wifi_control= wifi_control
+
+    def run(self):
+        self.wifi_control()
+        #trigger button environment description when action variable is 1
 
 def get_bounding_box(frame, objects, locations, index):
     xmin, ymin, xmax, ymax = [int(v) for v in locations[index]]
@@ -26,8 +45,9 @@ def get_bounding_box(frame, objects, locations, index):
 
 class VideoWidget(QWidget):
     def __init__(self):
-        
+
         super().__init__()
+        self.action = 1
         self.yolo_model = yolo.load_yolo()
         self.blip_processor, self.blip_model = blip.setup_model()
         self.tracker = create_tracker()
@@ -52,7 +72,7 @@ class VideoWidget(QWidget):
         self.caption_textbox = QPlainTextEdit(self)
         self.caption_textbox.setReadOnly(True)
         self.describe_button = QPushButton("Describe environment", self)
-        self.facerecognize_button = QPushButton("Recognize face", self) 
+        self.facerecognize_button = QPushButton("Recognize face", self)
         self.faceinfer_button = QPushButton("Infer face", self)
         self.face_textbox = QPlainTextEdit(self)
         self.face_textbox.setReadOnly(True)
@@ -67,6 +87,9 @@ class VideoWidget(QWidget):
         video_layout.addWidget(self.facerecognize_button)
         video_layout.addWidget(self.faceinfer_button)
         video_layout.addWidget(self.face_textbox)
+        #add a checkbox named wifi that triggers wifi_control function
+        self.wifi_checkbox = QCheckBox("Wifi", self)
+        video_layout.addWidget(self.wifi_checkbox)
 
         sidebar_layout = QVBoxLayout()
         sidebar_layout.addWidget(QLabel("Recently appeared objects:"))
@@ -91,6 +114,7 @@ class VideoWidget(QWidget):
         self.describe_button.clicked.connect(self.describe_environment)
         self.facerecognize_button.clicked.connect(self.recognize_face)
         self.faceinfer_button.clicked.connect(self.infer_face)
+        self.wifi_checkbox.stateChanged.connect(self.toggle_wifi_thread)
 
     def update_video(self):
         ret, self.frame = self.video.read()
@@ -132,6 +156,59 @@ class VideoWidget(QWidget):
             bytes_per_line = 3 * width
             qimage = QImage(self.frame.data, width, height, bytes_per_line, QImage.Format_RGB888).rgbSwapped()
             self.video_label.setPixmap(QPixmap.fromImage(qimage))
+    def toggle_wifi_thread(self,state):
+        if state:
+            self.wifi_thread = WifiThread(self.wifi_control)
+            self.wifi_thread.start()
+        else:
+            self.wifi_thread.quit()
+    def wifi_control(self):
+        #trigger button environment description when action variable is 1
+        s.listen()
+        while self.wifi_checkbox.isChecked():
+            conn, addr = s.accept()
+            thread = threading.Thread(target=self.handle_client, args=(conn, addr))
+            thread.start()
+            #get value from thread if 0 then stop it
+            if thread.join() == 0:
+                break
+            print(f"[ACTIVE CONNECTIONS] {threading.active_count() - 1}")
+
+    def handle_client(self,conn, addr):
+        print(f"[NEW CONNECTION] {addr} connected.")
+        connected = True
+        while connected:
+            msg_length = conn.recv(HEADER).decode(FORMAT)
+            #parse this string to get acction form it GET /move?dir=S HTTP/1.1
+            parsed = msg_length.split(" ")
+            type, val = parsed[1].split("?")[1].split("=")
+
+            if msg_length:
+                print(f"[{addr}] {val}")
+                if val== 'F':
+                    print(f"[{addr}] {msg_length} env desc")
+                    self.describe_environment()
+                if val== 'R':
+                    print(f"[{addr}] {msg_length} face infer")
+                    self.infer_face()
+                if val== 'L':
+                    print(f"[{addr}] {msg_length}")
+                    self.recognize_face()
+                if val== 'S':
+                    print(f"[{addr}] {msg_length}")
+                if val== '8':
+                    connected = False
+                    print(f"[{addr}] {msg_length}")
+                    print("Disconnected")
+                    conn.close()
+                    break
+                else:
+                    conn.close()
+                    break
+        #return value to thread to stop it
+        return 0
+
+
 
     def update_recent_objects(self):
         current_time = time.time()
@@ -177,7 +254,7 @@ class VideoWidget(QWidget):
             self.navigate_button.setText("Navigate")
             # set button color
             self.navigate_button.setStyleSheet("background-color: white")
-    
+
     def recognize_face(self):
         if self.frame is not None:
             # Convert the frame to an RGB image
@@ -189,7 +266,7 @@ class VideoWidget(QWidget):
             # Display the caption in the text box
             self.face_textbox.setPlainText(name)
             play_audio(name)
-    
+
     def infer_face(self):
         if self.frame is not None:
             # Convert the frame to an RGB image
@@ -252,7 +329,7 @@ class VideoWidget(QWidget):
             return "right"
         else:
             return "forward"
-        
+
     def start_navigation(self):
         if self.tracking and self.bbox:
             x, y, w, h = [int(v) for v in self.bbox]
@@ -283,7 +360,7 @@ class VideoWidget(QWidget):
                 scaled_distance_left = distance_left
                 # add the distance left to the navigation button
                 self.navigate_button.setText(f'Navigating... ({distance_left:.2f} px)')
-                
+
                 # Calculate the direction of the nearest portion of the smoothed path
                 origin = np.array([self.frame.shape[1] // 2, self.frame.shape[0]])
                 try:
@@ -301,7 +378,7 @@ class VideoWidget(QWidget):
 
                 direction = self.direction_from_angle(signed_angle)
 
-                
+
                 print(f'direction: {direction}')
 
                 # Display the direction on the frame
