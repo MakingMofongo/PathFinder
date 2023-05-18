@@ -15,7 +15,9 @@ import numpy as np
 
 def create_tracker():
     # Create tracker object
-    tracker = cv2.TrackerCSRT_create()
+    # tracker = cv2.TrackerCSRT_create() # slow, accurate, bad track loss detection
+    tracker = cv2.TrackerKCF_create() # fast, less accurate, good track loss detection
+
     return tracker
 
 def get_bounding_box(frame, objects, locations, index):
@@ -227,6 +229,30 @@ class VideoWidget(QWidget):
             self.caption_textbox.setPlainText(caption_text)
             play_audio(caption_text)
 
+    def moving_average_smoothing(self,path, window_size=5):
+        smoothed_path = []
+        for i in range(len(path)):
+            start = max(0, i - window_size // 2)
+            end = min(len(path), i + window_size // 2 + 1)
+            avg_point = np.mean(path[start:end], axis=0).astype(int)
+            smoothed_path.append(avg_point)
+        return smoothed_path
+
+
+    def angle_between_vectors(self,v1, v2):
+        dot_product = np.dot(v1, v2)
+        magnitude_product = np.linalg.norm(v1) * np.linalg.norm(v2)
+        angle = np.arccos(dot_product / magnitude_product) * (180 / np.pi)
+        return angle
+
+    def direction_from_angle(self,angle, threshold=30):
+        if angle < -threshold:
+            return "left"
+        elif angle > threshold:
+            return "right"
+        else:
+            return "forward"
+        
     def start_navigation(self):
         if self.tracking and self.bbox:
             x, y, w, h = [int(v) for v in self.bbox]
@@ -239,15 +265,18 @@ class VideoWidget(QWidget):
             depth_map = midas._open_map()
             path_result = pf.path_to_point(target_point, depth_map)
 
-            if path_result is None:
-                print('No path found')
-            else:
-                path = path_result[0]
-                depth_map_with_path = path_result[1]
+        if path_result is None:
+            print('No path found')
+        else:
+            path = path_result[0]
+            depth_map_with_path = path_result[1]
 
-                # Draw the path on the frame
-                for i in range(len(path) - 1):
-                    cv2.line(self.frame, path[i], path[i + 1], (0, 0, 255), 2)
+            # Smooth the path using moving average
+            smoothed_path = self.moving_average_smoothing(path)
+
+            # Draw the smoothed path on the frame
+            for i in range(len(smoothed_path) - 1):
+                cv2.line(self.frame, tuple(smoothed_path[i]), tuple(smoothed_path[i + 1]), (0, 0, 255), 2)
 
                 # calculate the distance left on the path
                 distance_left = pf.distance_left(path)
@@ -255,20 +284,23 @@ class VideoWidget(QWidget):
                 # add the distance left to the navigation button
                 self.navigate_button.setText(f'Navigating... ({distance_left:.2f} px)')
                 
-                # Calculate the direction of the nearest portion of the path
-                origin = (self.frame.shape[1] // 2, self.frame.shape[0])
+                # Calculate the direction of the nearest portion of the smoothed path
+                origin = np.array([self.frame.shape[1] // 2, self.frame.shape[0]])
                 try:
-                    nearest_point = path[2]
+                    nearest_point = np.array(smoothed_path[2])
                 except IndexError:
                     print('At the end of the path')
-                    nearest_point = path[0]
+                    nearest_point = np.array(smoothed_path[0])
 
-                direction = ""
+                forward_direction = np.array([0, -1])  # Assuming the user is facing up in the frame
+                path_direction = nearest_point - origin
 
-                if nearest_point[0] < origin[0]:
-                    direction = "left"
-                elif nearest_point[0] > origin[0]:
-                    direction = "right"
+                angle = self.angle_between_vectors(forward_direction, path_direction)
+                cross_product = np.cross(forward_direction, path_direction)
+                signed_angle = angle if cross_product >= 0 else -angle
+
+                direction = self.direction_from_angle(signed_angle)
+
                 
                 print(f'direction: {direction}')
 

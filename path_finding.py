@@ -40,7 +40,7 @@ def create_distance_transform(depth_map, object_threshold):
     distance_transform = cv2.distanceTransform(binary_map, cv2.DIST_L2, cv2.DIST_MASK_PRECISE)
     return distance_transform
 
-def astar(start, end, depth_map, object_threshold=50, penalty_weight=1, min_distance=1000):
+def astar(start, end, depth_map, object_threshold=50, penalty_weight=1, min_distance=10):
     distance_transform = create_distance_transform(depth_map, object_threshold)
 
     def cost_with_penalty(current, neighbor):
