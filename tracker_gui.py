@@ -9,7 +9,7 @@ from PyQt5.QtGui import QImage, QPixmap
 from PyQt5.QtCore import QTimer, Qt
 
 def create_tracker():
-    tracker = cv2.TrackerCSRT_create()
+    tracker = cv2.TrackerKCF_create()
     return tracker
 
 def get_bounding_box(frame, objects, locations, index):
