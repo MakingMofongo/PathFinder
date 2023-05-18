@@ -361,27 +361,12 @@ class VideoWidget(QWidget):
             for i in range(len(smoothed_path) - 1):
                 cv2.line(self.frame, tuple(smoothed_path[i]), tuple(smoothed_path[i + 1]), (0, 0, 255), 2)
 
-<<<<<<< HEAD
-                # calculate the distance left on the path
-                distance_left = pf.distance_left(path)
-                scaled_distance_left = distance_left
-                # add the distance left to the navigation button
-                self.navigate_button.setText(f'Navigating... ({distance_left:.2f} px)')
-
-                # Calculate the direction of the nearest portion of the smoothed path
-                origin = np.array([self.frame.shape[1] // 2, self.frame.shape[0]])
-                try:
-                    nearest_point = np.array(smoothed_path[2])
-                except IndexError:
-                    print('At the end of the path')
-                    nearest_point = np.array(smoothed_path[0])
-=======
             # calculate the distance left on the path
             distance_left = pf.distance_left(path)
             scaled_distance_left = distance_left
             # add the distance left to the navigation button
             self.navigate_button.setText(f'Navigating... ({distance_left:.2f} px)')
-            
+
             # Calculate the direction of the nearest portion of the smoothed path
             origin = np.array([self.frame.shape[1] // 2, self.frame.shape[0]])
             try:
@@ -389,7 +374,6 @@ class VideoWidget(QWidget):
             except IndexError:
                 print('At the end of the path')
                 nearest_point = np.array(smoothed_path[0])
->>>>>>> 95de0240362ef32073d8373effb33788e56f7c0d
 
             forward_direction = np.array([0, -1])  # Assuming the user is facing up in the frame
             path_direction = nearest_point - origin
@@ -400,13 +384,8 @@ class VideoWidget(QWidget):
 
             direction = self.direction_from_angle(signed_angle)
 
-<<<<<<< HEAD
 
-                print(f'direction: {direction}')
-=======
-            
             print(f'direction: {direction}')
->>>>>>> 95de0240362ef32073d8373effb33788e56f7c0d
 
             # Display the direction on the frame
             if direction:
