@@ -185,32 +185,35 @@ class VideoWidget(QWidget):
         connected = True
         while connected:
             msg_length = conn.recv(HEADER).decode(FORMAT)
-            #parse this string to get acction form it GET /move?dir=S HTTP/1.1
+            print(msg_length)
+            #parse this string to get acction form it GET /face HTTP/1.1
             parsed = msg_length.split(" ")
-            type, val = parsed[1].split("?")[1].split("=")
-
+            val = parsed[1][1:]
             if msg_length:
                 print(f"[{addr}] {val}")
-                if val== 'F':
+                if val== 'env':
                     print(f"[{addr}] {msg_length} env desc")
                     self.describe_environment()
-                if val== 'R':
+                if val== 'Face':
                     print(f"[{addr}] {msg_length} face infer")
                     self.infer_face()
-                if val== 'L':
+                if val== 'Ai':
                     print(f"[{addr}] {msg_length}")
                     self.recognize_face()
-                if val== 'S':
+                if val== 'nav':
                     print(f"[{addr}] {msg_length}")
-                if val== '8':
+                    self.toggle_navigation()
+                    if self.navigation_started:
+                        self.start_navigation()
+                if val== 'Disconnect':
                     connected = False
                     print(f"[{addr}] {msg_length}")
                     print("Disconnected")
                     conn.close()
                     break
                 else:
-                    conn.close()
-                    break
+                    print(f"[{addr}] {msg_length}")
+                    self.start_tracking(val)
         #return value to thread to stop it
         return 0
 
@@ -234,7 +237,11 @@ class VideoWidget(QWidget):
             self.recent_objects_list.addItem(item)
 
     def start_tracking(self, item):
-        obj_name = item.text()
+        try:
+            obj_name = item.text()
+        except:
+            obj_name = item
+
         if obj_name in self.tracked_objects:
             del self.tracked_objects[obj_name]
             item.setBackground(Qt.white)
