@@ -104,8 +104,17 @@ def create_side_by_side(image, depth, grayscale):
         return np.concatenate((image, right_side), axis=1)
 
 
-def run(input_path, output_path, model_path, model_type="dpt_beit_large_512", optimize=False, side=False, height=None,
-        square=False, grayscale=False):
+def init_midas(model_path, model_type="dpt_beit_large_512", optimize=False,height=None, square=False):
+    print("Initialize")
+
+    # select device
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print("Device: %s" % device)
+
+    model, transform, net_w, net_h = load_model(device, model_path, model_type, optimize, height, square)
+    return model, transform, net_w, net_h, device
+
+def run(input_path, output_path,model, transform, net_w, net_h ,device, model_type="dpt_beit_large_512", optimize=False, side=False, height=None, square=False, grayscale=False):
     """Run MonoDepthNN to compute depth maps.
 
     Args:
@@ -119,13 +128,7 @@ def run(input_path, output_path, model_path, model_type="dpt_beit_large_512", op
         square (bool): resize to a square resolution?
         grayscale (bool): use a grayscale colormap?
     """
-    print("Initialize")
 
-    # select device
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print("Device: %s" % device)
-
-    model, transform, net_w, net_h = load_model(device, model_path, model_type, optimize, height, square)
 
     # get input
     if input_path is not None:

@@ -4,6 +4,7 @@ import heapq
 from heapq import heappush, heappop
 import time
 import keyboard
+import os
 
 Crop_factor = 10
 def dijkstra(start, end, depth_map):
@@ -138,8 +139,8 @@ def path_to_point(point,depth_map=None, frame_num='frame'):
     # invert the point
     point = [point[1],point[0]]
     # print size of depth map
-    print(f'depth map size: {depth_map.shape}')
-    print(f'point before downscale: {point}')
+    # print(f'depth map size: {depth_map.shape}')
+    # print(f'point before downscale: {point}')
     # temp = depth_map
     # convert temp to color
     # temp = cv2.cvtColor(temp, cv2.COLOR_GRAY2BGR)
@@ -148,10 +149,12 @@ def path_to_point(point,depth_map=None, frame_num='frame'):
     # cv2.imshow('point drawn before downscaling',temp)
     # downscale point
     point = [point[0]//Crop_factor,point[1]//Crop_factor]
-    print(f'point after downscale: {point}')
+    # print(f'point after downscale: {point}')
 
     while (depth_map is None):
         depth_map = cv2.imread('./Midas/outputs/depth/frame.png', cv2.IMREAD_GRAYSCALE)
+        # delete frame.png
+        os.remove('./Midas/outputs/depth/frame.png')
     t1 = time.time()
 
     original_depth_map = depth_map.copy()
@@ -163,7 +166,7 @@ def path_to_point(point,depth_map=None, frame_num='frame'):
     target = point
     target = tuple(map(int, target))
     # convert to numpy tuple
-    print(target)
+    # print(target)
 
     # Convert the grayscale depth map to a color image
     depth_map_color = cv2.cvtColor(depth_map, cv2.COLOR_GRAY2BGR)
@@ -211,6 +214,12 @@ def path_to_point(point,depth_map=None, frame_num='frame'):
     # cv2.waitKey(1)
     # cv2.destroyAllWindows()
 
+def distance_left(path):
+    # calculate distance as the sum of the distance between each point
+    distance = 0
+    for i in range(len(path) - 1):
+        distance += np.sqrt((path[i][0] - path[i+1][0]) ** 2 + (path[i][1] - path[i+1][1]) ** 2)
+    return distance
 
 def loop_path_to_point(point):
     while keyboard.is_pressed('esc') == False:

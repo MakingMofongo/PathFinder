@@ -4,11 +4,13 @@ sys.path.append(os.path.join(os.getcwd(), 'Midas'))
 import Midas.run as Mid
 import cv2
 import path_finding as pf
-
-def run_midas(input):   
-    model = 'dpt_swin2_tiny_256'
-
-    Mid.run(input,'./Midas/outputs/forGUI',f'./Midas/weights/{model}.pt',model_type=model,grayscale=True)
+import torch
+model_name = 'dpt_swin2_tiny_256'
+def init():
+    model, transform, net_w, net_h, device = Mid.init_midas(model_path='./Midas/weights/dpt_swin2_tiny_256.pt', model_type=model_name)
+    return model, transform, net_w, net_h, device
+def run_midas(input,model,transform,net_w,net_h,device):   
+    Mid.run(input,'./Midas/outputs/forGUI',model,transform,net_w,net_h,device, model_type=model_name,grayscale=True)
 
 def _open_map():
     # open the map
