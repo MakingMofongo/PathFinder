@@ -15,46 +15,63 @@ def load_yolo():
     return model
 
 
-def inference(img = None, Loop = True,model = None):
-    while True:
-        while (img is None):
-            img = cv2.imread('./Midas/outputs/rgb/2.png', cv2.IMREAD_COLOR)
-        img_gpt = img.copy()
+def resize(img,factor=2):
+    # resize image to 1/factor of original size
+    height,width,_ = img.shape
+    img = cv2.resize(img,(int(width/factor),int(height/factor)))
+    return img
 
-        results = model(img_gpt)
-        objects=[]
-        # append object names to list
-        for i in range(len(results.pandas().xyxy[0]["name"].values[:])):
-            objects.append(results.pandas().xyxy[0]["name"].values[i])
-        # append bounding box locations to list
-        xyxy = results.pandas().xyxy[0]
-        xmins = xyxy.xmin.values[:]
-        ymins = xyxy.ymin.values[:]
-        xmaxs = xyxy.xmax.values[:]
-        ymaxs = xyxy.ymax.values[:]
-        locations = []
-        for i in range(len(xmins)):
-            locations.append([xmins[i],ymins[i],xmaxs[i],ymaxs[i]])
-            # keep 2 decimal places
-            locations[i] = [round(j,2) for j in locations[i]]
 
-        # print (locations)
-        # print (objects)
+def inference(img = None,model = None):
+    while (img is None):
+        img = cv2.imread('./Midas/outputs/rgb/2.png', cv2.IMREAD_COLOR)
+    img_gpt = img.copy()
+    # img_gpt = resize(img_gpt) 
+    results = model(img_gpt)
+    objects=[]
+    # append object names to list
+    for i in range(len(results.pandas().xyxy[0]["name"].values[:])):
+        objects.append(results.pandas().xyxy[0]["name"].values[i])
+    # append bounding box locations to list
+    xyxy = results.pandas().xyxy[0]
+    xmins = xyxy.xmin.values[:]
+    ymins = xyxy.ymin.values[:]
+    xmaxs = xyxy.xmax.values[:]
+    ymaxs = xyxy.ymax.values[:]
+    locations = []
+    for i in range(len(xmins)):
+        locations.append([xmins[i],ymins[i],xmaxs[i],ymaxs[i]])
+        # keep 2 decimal places
+        locations[i] = [round(j,2) for j in locations[i]]
 
-        results.render()
+    # print (locations)
+    # print (objects)
 
-        # cv2.imshow("ObjectDetection",img_gpt)
-        # cv2.waitKey(1)
-
-        if(keyboard.is_pressed('esc') == True):
-            return 0
-        
-        if(Loop == False):
-            return [objects,locations,img_gpt]
+    results.render()
+    return [objects,locations,img_gpt]
         
         
 if __name__ == '__main__':
-    # inference(Loop=False)
-    img = inference(Loop=False)[2]
-    cv2.imshow("ObjectDetection",img)
-    cv2.waitKey(0)
+    # use yolo on live webcam feed
+    model = load_yolo()
+    cam = cv2.VideoCapture(0)
+    while True:
+        start = time.time()
+        ret,frame = cam.read()
+        i = frame.copy()
+        o,l,i = inference(img = frame,model = model)
+        # add fps to image
+        cv2.putText(i,"FPS: "+str(int(1/(time.time()-start))),(10,30),cv2.FONT_HERSHEY_SIMPLEX,1,(0,0,255),2)
+        cv2.imshow("ObjectDetection",i)
+        cv2.waitKey(1)
+
+        if(keyboard.is_pressed('esc') == True):
+            break
+    cv2.destroyAllWindows()
+    cam.release()
+
+
+    # # inference(Loop=False)
+    # img = inference(Loop=False)[2]
+    # cv2.imshow("ObjectDetection",img)
+    # cv2.waitKey(0)

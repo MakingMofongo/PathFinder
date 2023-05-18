@@ -8,9 +8,14 @@ from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLa
 from PyQt5.QtGui import QImage, QPixmap
 from PyQt5.QtCore import QTimer, Qt
 import blip
+import deepface_recognizer as deepface
+from ElevenLabs.eleven_labs import play_audio
+import numpy as np
+
 
 def create_tracker():
-    tracker = cv2.TrackerKCF_create()
+    # Create tracker object
+    tracker = cv2.TrackerCSRT_create()
     return tracker
 
 def get_bounding_box(frame, objects, locations, index):
@@ -26,6 +31,7 @@ class VideoWidget(QWidget):
         self.tracker = create_tracker()
         self.video = cv2.VideoCapture(0)
         self.frame = None
+        self.raw_frame = None
         self.objects = []
         self.locations = []
         self.bbox = None
@@ -33,6 +39,7 @@ class VideoWidget(QWidget):
         self.tracked_objects = {}
         self.recent_objects = {}
         self.navigation_started = False
+        self.model, self.transform, self.net_w, self.net_h, self.device = midas.init()
 
         self.video_label = QLabel(self)
         self.objects_list = QListWidget(self)
@@ -43,6 +50,10 @@ class VideoWidget(QWidget):
         self.caption_textbox = QPlainTextEdit(self)
         self.caption_textbox.setReadOnly(True)
         self.describe_button = QPushButton("Describe environment", self)
+        self.facerecognize_button = QPushButton("Recognize face", self) 
+        self.faceinfer_button = QPushButton("Infer face", self)
+        self.face_textbox = QPlainTextEdit(self)
+        self.face_textbox.setReadOnly(True)
 
         video_layout = QVBoxLayout()
         video_layout.addWidget(self.video_label)
@@ -51,6 +62,9 @@ class VideoWidget(QWidget):
         video_layout.addWidget(self.navigate_button)
         video_layout.addWidget(self.describe_button)
         video_layout.addWidget(self.caption_textbox)
+        video_layout.addWidget(self.facerecognize_button)
+        video_layout.addWidget(self.faceinfer_button)
+        video_layout.addWidget(self.face_textbox)
 
         sidebar_layout = QVBoxLayout()
         sidebar_layout.addWidget(QLabel("Recently appeared objects:"))
@@ -67,18 +81,21 @@ class VideoWidget(QWidget):
 
         self.recent_objects_timer = QTimer()
         self.recent_objects_timer.timeout.connect(self.update_recent_objects)
-        self.recent_objects_timer.start(1000)
+        self.recent_objects_timer.start(3000)
 
         self.recent_objects_list.itemClicked.connect(self.start_tracking)
         self.back_button.clicked.connect(self.switch_to_yolo_mode)
         self.navigate_button.clicked.connect(self.toggle_navigation)
         self.describe_button.clicked.connect(self.describe_environment)
+        self.facerecognize_button.clicked.connect(self.recognize_face)
+        self.faceinfer_button.clicked.connect(self.infer_face)
 
     def update_video(self):
         ret, self.frame = self.video.read()
+        self.raw_frame = self.frame.copy()
         if ret:
             if not self.tracking:
-                result = yolo.inference(self.frame, Loop=False, model=self.yolo_model)
+                result = yolo.inference(self.frame, model=self.yolo_model)
                 self.frame = result[2]
                 self.objects = result[0]
                 self.locations = result[1]
@@ -149,17 +166,66 @@ class VideoWidget(QWidget):
 
     def toggle_navigation(self):
         self.navigation_started = not self.navigation_started
+        if self.navigation_started:
+            self.navigate_button.setText("Navigating...")
+            # set button color
+            self.navigate_button.setStyleSheet("background-color: green")
 
-    def describe_environment(self):
+        else:
+            self.navigate_button.setText("Navigate")
+            # set button color
+            self.navigate_button.setStyleSheet("background-color: white")
+    
+    def recognize_face(self):
         if self.frame is not None:
             # Convert the frame to an RGB image
             image = cv2.cvtColor(self.frame, cv2.COLOR_BGR2RGB)
 
             # Generate the caption using the Blip model
-            caption_text = blip.caption(image, self.blip_processor, self.blip_model)
+            name, x, y, w, h = deepface.recognize_face(image)
+
+            # Display the caption in the text box
+            self.face_textbox.setPlainText(name)
+            play_audio(name)
+    
+    def infer_face(self):
+        if self.frame is not None:
+            # Convert the frame to an RGB image
+            image = cv2.cvtColor(self.frame, cv2.COLOR_BGR2RGB)
+
+            age,gender,race,emotion = deepface.infer(image)
+            # concat the attributes
+            inference_result = f"age: {age}, gender: {gender}, race: {race}, emotion: {emotion}"
+            # Display the caption in the text box
+            self.face_textbox.setPlainText(inference_result)
+            play_audio(inference_result)
+
+    def describe_environment(self):
+        if self.frame is not None:
+            # Convert the frame to an RGB image
+            image = cv2.cvtColor(self.raw_frame, cv2.COLOR_BGR2RGB)
+            caption_text = blip.caption(image,processor = self.blip_processor,model = self.blip_model)
+            # Generate the caption using the Blip model
+            # is_money = blip.caption(image,processor = self.blip_processor,model = self.blip_model)
+            # if is_money == 'yes':
+                # money_dict = {}
+                # denomination = blip.caption(image,text = 'list all the denominations of money present in the image?',processor = self.blip_processor,model = self.blip_model)
+                # denomination = blip.caption(image,text = 'list all the colors of the bills in the image?',processor = self.blip_processor,model = self.blip_model)
+                # print(f'various denominations of money present in the image: {denomination}')
+                # convert denomination to list by splitting the string with _ character
+                # denominations = denomination.split(' ')
+                # for den in denominations:
+                    # count = blip.caption(image,text = f'how many bank {den} Rupee notes are there in the image?',processor = self.blip_processor,model = self.blip_model)
+                    # money_dict[den] = count
+                # list out all the denominations and their counts in a string separated by commas
+                # money_text = ', '.join([f'{k}rs: x{v}' for k, v in money_dict.items()])
+                # caption_text = f'There are {money_text}  bank notes in the image'
+            # else:
+                # caption_text = 'There is no bank note in the image'
 
             # Display the caption in the text box
             self.caption_textbox.setPlainText(caption_text)
+            play_audio(caption_text)
 
     def start_navigation(self):
         if self.tracking and self.bbox:
@@ -168,9 +234,8 @@ class VideoWidget(QWidget):
             cv2.circle(self.frame, target_point, 5, (0, 0, 255), -1)
 
             save_path = './Midas/inputs/rgb/'
-            cv2.imwrite(save_path + 'frame_gui.png', self.frame)
-            print('Size of self frame', self.frame.shape)
-            midas.run_midas(save_path)
+            cv2.imwrite(save_path + 'frame_gui.png', self.raw_frame)
+            midas.run_midas(save_path, self.model, self.transform, self.net_w, self.net_h, self.device)
             depth_map = midas._open_map()
             path_result = pf.path_to_point(target_point, depth_map)
 
@@ -180,12 +245,24 @@ class VideoWidget(QWidget):
                 path = path_result[0]
                 depth_map_with_path = path_result[1]
 
+                # Draw the path on the frame
                 for i in range(len(path) - 1):
                     cv2.line(self.frame, path[i], path[i + 1], (0, 0, 255), 2)
 
+                # calculate the distance left on the path
+                distance_left = pf.distance_left(path)
+                scaled_distance_left = distance_left
+                # add the distance left to the navigation button
+                self.navigate_button.setText(f'Navigating... ({distance_left:.2f} px)')
+                
                 # Calculate the direction of the nearest portion of the path
                 origin = (self.frame.shape[1] // 2, self.frame.shape[0])
-                nearest_point = path[2]
+                try:
+                    nearest_point = path[2]
+                except IndexError:
+                    print('At the end of the path')
+                    nearest_point = path[0]
+
                 direction = ""
 
                 if nearest_point[0] < origin[0]:
@@ -200,7 +277,7 @@ class VideoWidget(QWidget):
                     cv2.putText(self.frame, direction.upper(), (origin[0] - 50, origin[1] - 50),
                                 cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
 
-                # cv2.imshow('Depth Map', depth_map_with_path)
+                cv2.imshow('Depth Map', depth_map_with_path)
                 # cv2.imshow('Navigation', self.frame)
 
 
