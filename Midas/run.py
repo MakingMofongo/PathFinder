@@ -13,7 +13,7 @@ import numpy as np
 from imutils.video import VideoStream
 from midas.model_loader import default_models, load_model
 
-from extras.Midas_Sam_Helper import farthest_point
+#from extras.Midas_Sam_Helper import farthest_point
 
 first_execution = True
 def process(device, model, model_type, image, input_size, target_size, optimize, use_camera):
@@ -205,7 +205,7 @@ def run(input_path, output_path, model_path, model_type="dpt_beit_large_512", op
                         # write to txt file
                         with open(output_path_depth + '/point.txt', 'w') as f:
                             f.write(str(point[0]) + ',' + str(point[1]))
-                            
+
 
                     alpha = 0.1
                     if time.time()-time_start > 0:
@@ -222,7 +222,7 @@ def run(input_path, output_path, model_path, model_type="dpt_beit_large_512", op
     print("Finished")
 
 
-def run_camera_inference(model='dpt_swin2_tiny_256'):   
+def run_camera_inference(model='dpt_swin2_tiny_256'):
     run(None,'./Midas/outputs',f'./Midas/weights/{model}.pt',model_type=model)
 
 if __name__ == "__main__":
@@ -295,6 +295,6 @@ if __name__ == "__main__":
     # compute depth maps
     run(args.input_path, args.output_path, args.model_weights, args.model_type, args.optimize, args.side, args.height,
         args.square, args.grayscale)
-    
+
 
 

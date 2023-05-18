@@ -5,7 +5,7 @@ import Midas.run as Mid
 import cv2
 import path_finding as pf
 
-def run_midas(input):   
+def run_midas(input):
     model = 'dpt_swin2_tiny_256'
 
     Mid.run(input,'./Midas/outputs/forGUI',f'./Midas/weights/{model}.pt',model_type=model,grayscale=True)
@@ -13,7 +13,7 @@ def run_midas(input):
 def _open_map():
     # open the map
     map = cv2.imread('./Midas/outputs/forGUI/frame.png', cv2.IMREAD_GRAYSCALE)
-    return map 
+    return map
 
 def path(point):
     map = _open_map()

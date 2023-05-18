@@ -9,7 +9,7 @@ from PyQt5.QtGui import QImage, QPixmap
 from PyQt5.QtCore import QTimer, Qt
 
 def create_tracker():
-    tracker = cv2.TrackerKCF_create()
+    tracker = cv2.TrackerCSRT_create()
     return tracker
 
 def get_bounding_box(frame, objects, locations, index):
@@ -149,7 +149,7 @@ class VideoWidget(QWidget):
             # save self.frame
             save_path = './Midas/inputs/rgb/'
             cv2.imwrite(save_path + 'frame_gui.png', self.frame)
-            # print size of self.frame  
+            # print size of self.frame
             print('Size of self frame',self.frame.shape)
             midas.run_midas(save_path)
             depth_map = midas._open_map()
@@ -157,10 +157,10 @@ class VideoWidget(QWidget):
             # if is not none
             if path_result is None:
                 print('No path found')
-            else:    
+            else:
                 path = path_result[0]
                 depth_map_with_path = path_result[1]
-                
+
                 for i in range(len(path) - 1):
                     cv2.line(self.frame, path[i], path[i + 1], (0, 0, 255), 2)
                 cv2.imshow('Depth Map', depth_map_with_path)
