@@ -5,8 +5,8 @@ import Midas.run as Mid
 import cv2
 import path_finding as pf
 import torch
-# model_name = 'dpt_swin2_tiny_256'
-model_name = 'dpt_swin_large_384'
+model_name = 'dpt_swin2_tiny_256'
+# model_name = 'dpt_swin_large_384'
 model_path = f'./Midas/weights/{model_name}.pt'
 def init():
     model, transform, net_w, net_h, device = Mid.init_midas(model_path=model_path, model_type=model_name)
