@@ -8,8 +8,6 @@ import multiprocessing as mp
 import cv2
 import time
 
-import extras.sam as sam
-
 def on_read_midas_map():
     initial_bgr_image = cv2.imread('./Midas/outputs/rgb/frame.png')
     predictor = sam.setup_sam_model() #only use new depth maps
