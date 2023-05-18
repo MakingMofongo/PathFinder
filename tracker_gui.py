@@ -93,6 +93,7 @@ class VideoWidget(QWidget):
         self.faceinfer_button.clicked.connect(self.infer_face)
 
     def update_video(self):
+        t1=time.time()
         ret, self.frame = self.video.read()
         self.raw_frame = self.frame.copy()
         if ret:
@@ -127,6 +128,11 @@ class VideoWidget(QWidget):
                         self.start_navigation()
                 else:
                     self.switch_to_yolo_mode()
+            t2 = time.time()
+            fps = 1/(t2-t1)
+            if fps > 60:
+                fps = 60
+            cv2.putText(self.frame,"FPS: "+str(int(fps)),(10,30),cv2.FONT_HERSHEY_SIMPLEX,1,(0,0,255),2)
 
             height, width, channel = self.frame.shape
             bytes_per_line = 3 * width
@@ -278,39 +284,39 @@ class VideoWidget(QWidget):
             for i in range(len(smoothed_path) - 1):
                 cv2.line(self.frame, tuple(smoothed_path[i]), tuple(smoothed_path[i + 1]), (0, 0, 255), 2)
 
-                # calculate the distance left on the path
-                distance_left = pf.distance_left(path)
-                scaled_distance_left = distance_left
-                # add the distance left to the navigation button
-                self.navigate_button.setText(f'Navigating... ({distance_left:.2f} px)')
-                
-                # Calculate the direction of the nearest portion of the smoothed path
-                origin = np.array([self.frame.shape[1] // 2, self.frame.shape[0]])
-                try:
-                    nearest_point = np.array(smoothed_path[2])
-                except IndexError:
-                    print('At the end of the path')
-                    nearest_point = np.array(smoothed_path[0])
+            # calculate the distance left on the path
+            distance_left = pf.distance_left(path)
+            scaled_distance_left = distance_left
+            # add the distance left to the navigation button
+            self.navigate_button.setText(f'Navigating... ({distance_left:.2f} px)')
+            
+            # Calculate the direction of the nearest portion of the smoothed path
+            origin = np.array([self.frame.shape[1] // 2, self.frame.shape[0]])
+            try:
+                nearest_point = np.array(smoothed_path[2])
+            except IndexError:
+                print('At the end of the path')
+                nearest_point = np.array(smoothed_path[0])
 
-                forward_direction = np.array([0, -1])  # Assuming the user is facing up in the frame
-                path_direction = nearest_point - origin
+            forward_direction = np.array([0, -1])  # Assuming the user is facing up in the frame
+            path_direction = nearest_point - origin
 
-                angle = self.angle_between_vectors(forward_direction, path_direction)
-                cross_product = np.cross(forward_direction, path_direction)
-                signed_angle = angle if cross_product >= 0 else -angle
+            angle = self.angle_between_vectors(forward_direction, path_direction)
+            cross_product = np.cross(forward_direction, path_direction)
+            signed_angle = angle if cross_product >= 0 else -angle
 
-                direction = self.direction_from_angle(signed_angle)
+            direction = self.direction_from_angle(signed_angle)
 
-                
-                print(f'direction: {direction}')
+            
+            print(f'direction: {direction}')
 
-                # Display the direction on the frame
-                if direction:
-                    cv2.putText(self.frame, direction.upper(), (origin[0] - 50, origin[1] - 50),
-                                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+            # Display the direction on the frame
+            if direction:
+                cv2.putText(self.frame, direction.upper(), (origin[0] - 50, origin[1] - 50),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
 
-                cv2.imshow('Depth Map', depth_map_with_path)
-                # cv2.imshow('Navigation', self.frame)
+            cv2.imshow('Depth Map', depth_map_with_path)
+            # cv2.imshow('Navigation', self.frame)
 
 
 if __name__ == "__main__":
