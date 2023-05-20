@@ -1,10 +1,16 @@
 # PathFinder
 VISTECH - SRM hackathon project
 
-
 Commits combined to remove extra data
 
 'AI Tech for the Visually Impaired'
+
+<img width="1280" alt="image" src="https://github.com/clumsyninja3086/PathFinder/assets/34381007/9847e144-6e03-4ebe-aaf8-ea1c8d193681">
+
+<img width="1280" alt="image" src="https://github.com/clumsyninja3086/PathFinder/assets/34381007/c23a7d33-55d6-4e67-a458-ab5264460c48">
+
+<img width="1280" alt="image" src="https://github.com/clumsyninja3086/PathFinder/assets/34381007/9b1805a9-a64c-4c9d-8920-3bc6307f36bd">
+
 
 The problem Vistech solves:
 
