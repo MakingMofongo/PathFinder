@@ -29,3 +29,11 @@ Path Navigation Algorithm: Designing an accurate and reliable path navigation al
 Monocular Depth Map Estimation Accuracy and Processing Speed: Accurate depth estimation from a single camera feed (monocular depth estimation) was crucial for the path navigation feature as we didn't want to use specialized hardware in a product for disadvantaged people. However, achieving high accuracy while maintaining real-time processing speed was a challenging trade-off. We explored various computer vision techniques, optimized algorithms, and utilized parallel processing to improve both accuracy and speed. We settled on a custom implementation of the MIDAS algorithm
 
 Tracking and loss of Tracking Detection: We had to test many tracking algorithms but landed on CV2's KCF tracker for a good balance between speed and accuracy. We encountered challenges when the tracking algorithm lost track of objects due to occlusion, rapid movements, or changes in lighting conditions. To address this, we developed mechanisms to detect and recover from tracking loss. Whenever a track loss is detected, the algorithm switches back to object detection and locates the object of interest and re-establishes a track on it.
+
+
+
+
+
+
+<img width="1280" alt="image" src="https://github.com/clumsyninja3086/PathFinder/assets/34381007/879002a2-7c90-4852-aaf1-32cc78759ce9">
+
